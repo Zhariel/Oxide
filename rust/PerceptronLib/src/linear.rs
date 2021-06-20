@@ -2,7 +2,6 @@ use rand::Rng;
 // use ndarray::*;
 // use ndarray_linalg::*;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
-use rand::seq::index::sample;
 
 #[cfg(test)]
 mod tests {
@@ -25,13 +24,9 @@ pub extern "C" fn create_linear_model(mod_size: usize) -> *mut f32 {
     let mut rng = rand::thread_rng();
 
     for _i in 0..mod_size_w{
-        let x = rng.gen_range(0.0..1.0) * 2.0 - 1.0;
+        let x = rng.gen_range(-1.0..1.0);
         model.push(x);
     }
-
-    // model[0] = 0.04224361;
-    // model[1] = -0.04969873;
-    // model[2] = 0.0212516;
 
     let boxed_model = model.into_boxed_slice();
     let model_ref = Box::leak(boxed_model);
@@ -44,7 +39,6 @@ pub extern "C" fn predict_linear_model_regression(model: *mut f32, inputs: *mut 
     let modelvec = unsafe{from_raw_parts(model, mod_size)};
     let inputvec = unsafe{from_raw_parts(inputs, mod_size)};
 
-    // modelvec.iter().zip(inputvec.into_iter()).map(|(x, y)| x * y).fold(0.0, |sum, i| sum + i)
 
     let mut w_sum = modelvec[0];
 
@@ -61,6 +55,7 @@ pub extern "C" fn predict_linear_model_classification(model: *mut f32, inputs: *
 
     sign
 }
+
 
 #[no_mangle]
 pub extern "C" fn train_rosenblatt_linear_model(np_model: *mut f32, np_inputs: *mut f32, np_expected_outputs: *mut f32, mod_size: usize, dataset_size: usize, iterations: i32, alpha: f32) {
