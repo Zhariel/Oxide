@@ -39,7 +39,6 @@ pub extern "C" fn predict_linear_model_regression(model: *mut f32, inputs: *mut 
     let modelvec = unsafe{from_raw_parts(model, mod_size)};
     let inputvec = unsafe{from_raw_parts(inputs, mod_size)};
 
-
     let mut w_sum = modelvec[0];
 
     for i in 1..mod_size{
