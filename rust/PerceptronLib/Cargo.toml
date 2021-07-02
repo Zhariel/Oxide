@@ -11,5 +11,6 @@ crate-type=['cdylib']
 
 [dependencies]
 rand = "0.8.3"
+rayon = "1.5.1"
 #ndarray = "0.14.0"
 #ndarray-linalg = { version="0.13.1", features=['intel-mkl']}

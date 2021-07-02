@@ -15,6 +15,13 @@ class Ruster():
         self.path = path
         self.lib = cdll.LoadLibrary(path)
 
+    def sum(self, arr):
+        arr_type = c_int * len(arr)
+        self.lib.sum.argtypes = [arr_type, c_int]
+        self.lib.sum.restype = c_int
+        native_arr = arr_type(*arr)
+
+        return self.lib.sum(native_arr, len(arr))
 
     def npify(self, model, size):
         return np.ctypeslib.as_array(model, (size,))

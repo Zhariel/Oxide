@@ -1,4 +1,5 @@
 use rand::Rng;
+use rayon::prelude::*;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
 pub struct NeuralNet{
@@ -12,8 +13,7 @@ pub struct NeuralNet{
     deltas : Vec<Vec<f32>>
 }
 
-#[no_mangle]
-pub extern "C" fn init_X(layer_count: usize, input_len: usize, hidden_len : usize) -> Vec<Vec<f32>>{
+fn init_X(layer_count: usize, input_len: usize, hidden_len : usize) -> Vec<Vec<f32>>{
     let mut x:Vec<Vec<f32>> = vec![];
 
     let input_with_bias = input_len + 1;
@@ -32,8 +32,7 @@ pub extern "C" fn init_X(layer_count: usize, input_len: usize, hidden_len : usiz
     x
 }
 
-#[no_mangle]
-pub extern "C" fn init_W(layer_count: usize, input_len: usize, hidden_len: usize, output_len: usize) -> Vec<Vec<Vec<f32>>>{
+fn init_W(layer_count: usize, input_len: usize, hidden_len: usize, output_len: usize) -> Vec<Vec<Vec<f32>>>{
     let mut w:Vec<Vec<Vec<f32>>> = vec![];
     let input_with_bias = input_len + 1;
     let hidden_with_bias = hidden_len + 1;
@@ -57,8 +56,7 @@ pub extern "C" fn init_W(layer_count: usize, input_len: usize, hidden_len: usize
     w
 }
 
-#[no_mangle]
-pub extern "C" fn init_Deltas(layer_count: usize, hidden_len: usize, output_len: usize) -> Vec<Vec<f32>> {
+fn init_Deltas(layer_count: usize, hidden_len: usize, output_len: usize) -> Vec<Vec<f32>> {
     let mut deltas : Vec<Vec<f32>> = vec![];
     let hidden_with_bias = hidden_len + 1;
 
@@ -71,8 +69,7 @@ pub extern "C" fn init_Deltas(layer_count: usize, hidden_len: usize, output_len:
     deltas
 }
 
-#[no_mangle]
-pub extern "C" fn randomize_weights(vec: &mut Vec<f32>){
+fn randomize_weights(vec: &mut Vec<f32>){
     let mut rng = rand::thread_rng();
     for i in 0..vec.len(){
         vec[i] = rng.gen_range(-1.0..1.0);
@@ -106,7 +103,7 @@ pub extern "C" fn train_NeuralNet(nn_raw: *mut NeuralNet, x: *mut f32, x_length:
     };
     let inputs = unsafe {from_raw_parts_mut(x, x_length)};
     let expected = unsafe {from_raw_parts_mut(y, y_length)};
-    let sample_count = dataset_size / nn.input_len;
+    let sample_count = x_length / nn.input_len;
 
     for e in 0..epoch{
         for i in 0..sample_count{
@@ -115,7 +112,7 @@ pub extern "C" fn train_NeuralNet(nn_raw: *mut NeuralNet, x: *mut f32, x_length:
                 nn.x[0][d] = inputs[(i * nn.input_len) + d-1];
             }
 
-            feed_Forward(nn, is_classif);
+            feed_forward(nn, is_classif);
 
             let mut y_sample: Vec<f32> = vec![0.0; nn.output_len];
             fill_vec(&mut expected[i*nn.output_len], &mut y_sample, nn.output_len);
@@ -134,7 +131,7 @@ pub extern "C" fn predict(nn: &mut NeuralNet, x: *mut f32, is_classif: bool) -> 
         nn.x[0][d] = inputs[d-1];
     }
 
-    feed_Forward(nn, is_classif);
+    feed_forward(nn, is_classif);
 
     let result = nn.out.clone();
 
@@ -144,8 +141,7 @@ pub extern "C" fn predict(nn: &mut NeuralNet, x: *mut f32, is_classif: bool) -> 
     result_ref.as_mut_ptr()
 }
 
-#[no_mangle]
-pub extern "C" fn feed_Forward(nn: &mut NeuralNet, is_classif: bool){
+fn feed_forward(nn: &mut NeuralNet, is_classif: bool){
 
     for l in 0..nn.layer_count-1{
         for i in 1..nn.w[l].len() {
@@ -155,7 +151,14 @@ pub extern "C" fn feed_Forward(nn: &mut NeuralNet, is_classif: bool){
                 w_sum += nn.w[l][i][j] * nn.x[l][j];
             }
 
-            nn.x[l+1][i] = w_sum.tanh();
+            // let mut w_sum: f32 = nn.w[l][i].par_iter_mut()
+            //     .zip(nn.x[l].par_iter_mut())
+            //     .map(|(w, x)| *w * *x)
+            //     .fold(|| 0.0, |sum, i| sum + i)
+            //     .sum::<f32>();
+
+
+            nn.x[l + 1][i] = w_sum.tanh();
         }
     }
 
@@ -176,8 +179,7 @@ pub extern "C" fn feed_Forward(nn: &mut NeuralNet, is_classif: bool){
     }
 }
 
-#[no_mangle]
-pub extern "C" fn backprop(nn: &mut NeuralNet, y: &Vec<f32>, alpha: f32, is_classif: bool){
+fn backprop(nn: &mut NeuralNet, y: &Vec<f32>, alpha: f32, is_classif: bool){
     let mut idx = nn.layer_count - 1;
 
     if is_classif{
@@ -196,8 +198,7 @@ pub extern "C" fn backprop(nn: &mut NeuralNet, y: &Vec<f32>, alpha: f32, is_clas
     correct_w(nn, alpha);
 }
 
-#[no_mangle]
-pub extern "C" fn correct_w(nn: &mut NeuralNet, alpha: f32){
+fn correct_w(nn: &mut NeuralNet, alpha: f32){
     for l in 0..nn.layer_count{
         for i in 0..nn.w[l].len(){
             for j in 0..nn.w[l][i].len(){
@@ -207,8 +208,7 @@ pub extern "C" fn correct_w(nn: &mut NeuralNet, alpha: f32){
     }
 }
 
-#[no_mangle]
-pub extern "C" fn deltas_hidden_layer(nn: &mut NeuralNet, idx: usize){
+fn deltas_hidden_layer(nn: &mut NeuralNet, idx: usize){
     for i in 0..nn.deltas[idx].len(){
         let mut sum_deltas = 0.0;
 
@@ -220,8 +220,7 @@ pub extern "C" fn deltas_hidden_layer(nn: &mut NeuralNet, idx: usize){
     }
 }
 
-#[no_mangle]
-pub extern "C" fn deltas_last_layer_classif(nn: &mut NeuralNet, y: &Vec<f32>){
+fn deltas_last_layer_classif(nn: &mut NeuralNet, y: &Vec<f32>){
     let idx = nn.layer_count - 1;
 
     for i in 0..nn.deltas[idx].len(){
@@ -229,13 +228,15 @@ pub extern "C" fn deltas_last_layer_classif(nn: &mut NeuralNet, y: &Vec<f32>){
     }
 }
 
-#[no_mangle]
-pub extern "C" fn deltas_last_layer_regression(nn: &mut NeuralNet, y: &Vec<f32>){
+fn deltas_last_layer_regression(nn: &mut NeuralNet, y: &Vec<f32>){
+    let idx = nn.layer_count - 1;
 
+    for i in 0..nn.deltas[idx].len(){
+        nn.deltas[idx][i] = nn.out[i] - y[i];
+    }
 }
 
-#[no_mangle]
-pub extern "C" fn fill_vec(origin_ptr: *mut f32, y: &mut Vec<f32>, len: usize){
+fn fill_vec(origin_ptr: *mut f32, y: &mut Vec<f32>, len: usize){
     let origin = unsafe {from_raw_parts_mut(origin_ptr, len)};
     for i in 0..len{
         y[i] = origin[i];
