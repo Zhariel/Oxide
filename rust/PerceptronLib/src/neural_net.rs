@@ -157,7 +157,6 @@ fn feed_forward(nn: &mut NeuralNet, is_classif: bool){
             //     .fold(|| 0.0, |sum, i| sum + i)
             //     .sum::<f32>();
 
-
             nn.x[l + 1][i] = w_sum.tanh();
         }
     }

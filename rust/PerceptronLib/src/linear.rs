@@ -90,4 +90,3 @@ pub extern "C" fn destroy_model(model: *mut f32, mod_size: usize){
         let _ = Vec::from_raw_parts(model, mod_size, mod_size);
     }
 }
-
