@@ -1,5 +1,73 @@
 use std::slice::{from_raw_parts_mut, from_raw_parts};
+use crate::linear::{create_linear_model, train_rosenblatt_linear_model};
 use rand::Rng;
+use rand::seq::index::sample;
+
+#[no_mangle]
+pub extern "C" fn predict_rbf_classification(w_raw: *mut f32, x_raw: *mut f32, sample_raw: *mut f32, x_len: usize, ndim: usize, gamma: f32) -> f32 {
+    let pred = predict_rbf_regression(w_raw, x_raw, sample_raw, x_len, ndim, gamma);
+    let sign = if pred >= 0.0 {1.0} else {-1.0};
+
+    sign
+}
+
+#[no_mangle]
+pub extern "C" fn predict_rbf_regression(w_raw: *mut f32, x_raw: *mut f32, sample_raw: *mut f32, x_len: usize, ndim: usize, gamma: f32) -> f32{
+    let sample_count = x_len / ndim;
+    // let sample = unsafe{from_raw_parts(sample_raw, ndim)};
+    // let w: Vec<f32> = vec![1.0; sample_count];
+    let mut w = unsafe{from_raw_parts(w_raw, sample_count)};
+    let x = unsafe{from_raw_parts_mut(x_raw, x_len)};
+    let mut gauss_outputs: Vec<f32> = vec![0.0; sample_count];
+
+    for i in 0..gauss_outputs.len(){
+        let x_slice = x[i*ndim..(i+1)*ndim].as_mut_ptr();
+        gauss_outputs[i] = (-gamma * norm(sample_raw, x_slice, ndim).powf(2.0)).exp()
+    }
+
+    let mut w_sum: f32 = 0.0;
+    for i in 0..gauss_outputs.len(){
+        w_sum += gauss_outputs[i] * w[i];
+    }
+    w_sum
+}
+
+fn norm(p1_raw : *mut f32, p2_raw : *mut f32, ndim: usize) -> f32{
+    let p1 = unsafe{from_raw_parts(p1_raw, ndim)};
+    let p2 = unsafe{from_raw_parts(p2_raw, ndim)};
+
+    let mut sum: f32 = 0.0;
+    for i in 0..ndim{
+        sum += (p1[i] - p2[i]).powf(2.0);
+    }
+    sum.sqrt()
+}
+
+#[no_mangle]
+pub extern "C" fn train_rosenblatt_rbf(w_raw: *mut f32, x_raw: *mut f32,  y_raw: *mut f32, x_len: usize, ndim: usize, iterations: usize, alpha: f32, gamma: f32) {
+    let sample_count = x_len / ndim;
+    let w = unsafe{from_raw_parts_mut(w_raw, sample_count)};
+    let y = unsafe{from_raw_parts_mut(y_raw, sample_count)};
+    let x = unsafe{from_raw_parts_mut(x_raw, x_len)};
+    let mut rng = rand::thread_rng();
+
+    let null_vec: *mut f32 = vec![0.0; ndim].as_mut_ptr();
+
+    for i in 0..iterations{
+        // let bias: *mut f32 = vec![1.0; ndim].as_mut_ptr();
+        // let mut gxk = predict_rbf_regression(w_raw, x_raw, bias, x_len, ndim, gamma);
+        // w[0] += alpha * (y[0] - gxk) * 1.0;
+
+        for j in 0..sample_count{
+            let xk_slice = &mut x[(j*ndim)..((j+1)*ndim)];
+            let xk = xk_slice.as_mut_ptr();
+
+            let gxk = predict_rbf_regression(w_raw, x_raw, xk, x_len, ndim, gamma);
+
+            w[j] += alpha * (y[j] - gxk) * norm(xk, null_vec, ndim);
+        }
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn init_clusters(x: *mut f32, x_len: usize, nb_clusters: usize, ndim: usize) -> *mut f32{
@@ -59,7 +127,7 @@ pub extern "C" fn k_means(x: *mut f32, x_len: usize, clusters_raw: *mut f32, nb_
 
             for c in 0..nb_clusters {
                 let clst_slice = &mut clusters[c * ndim..(c + 1) * ndim];
-                let distance = euclidian_distance(slice.as_mut_ptr(), clst_slice.as_mut_ptr(), ndim);
+                let distance = norm(slice.as_mut_ptr(), clst_slice.as_mut_ptr(), ndim);
                 if distance < closest_dist {
                     closest_cluster = c;
                     closest_dist = distance;
@@ -95,17 +163,4 @@ pub extern "C" fn k_means(x: *mut f32, x_len: usize, clusters_raw: *mut f32, nb_
             }
         }
     }
-    // println!("{}", counter);
-}
-
-fn euclidian_distance(p1_raw : *mut f32, p2_raw : *mut f32, ndim: usize) -> f32{
-    let p1 = unsafe{from_raw_parts(p1_raw, ndim)};
-    let p2 = unsafe{from_raw_parts(p2_raw, ndim)};
-
-    let sum: f32 = p1.iter()
-        .zip(p2.into_iter())
-        .map(|(x, y)| (x - y).powf(2.0))
-        .fold(0.0, |sum, i| sum + i);
-
-    sum.sqrt()
 }

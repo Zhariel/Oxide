@@ -34,39 +34,6 @@ class Ruster():
         self.lib.destroy_model.restype = None
         self.lib.destroy_model(native_model, size)
 
-    def predict_linear_model_regression(self, model_raw, input, model_size):
-        input_type = c_float * len(input)
-
-        self.lib.predict_linear_model_regression.argtypes = [POINTER(c_float), input_type, c_int]
-        self.lib.predict_linear_model_regression.restype = c_float
-
-        inputs_native = input_type(*input)
-
-        return self.lib.predict_linear_model_regression(model_raw, inputs_native, model_size)
-
-    def predict_linear_model_classification(self, model_raw, input, model_size):
-        input_type = c_float * len(input)
-
-        self.lib.predict_linear_model_classification.argtypes = [POINTER(c_float), input_type, c_int]
-        self.lib.predict_linear_model_classification.restype = c_float
-
-        inputs_native = input_type(*input)
-
-        return self.lib.predict_linear_model_classification(model_raw, inputs_native, model_size)
-
-    def train_rosenblatt_linear_model(self, model_raw, input, expected_outputs, model_size, iterations, alpha):
-        input_type = c_float * len(input)
-        expected_type = c_float * len(expected_outputs)
-
-        self.lib.train_rosenblatt_linear_model.argtypes = [POINTER(c_float), POINTER(c_float), POINTER(c_float), c_int,
-                                                           c_int, c_int, c_float]
-
-        inputs_native = input_type(*input)
-        expected_native = expected_type(*expected_outputs)
-
-        self.lib.train_rosenblatt_linear_model(model_raw, inputs_native, expected_native, model_size, len(input),
-                                               iterations, alpha)
-
     def init_clusters(self, inputs, nb_clusters, ndim):
         input_type = c_float * len(inputs)
         inputs_native = input_type(*inputs)
@@ -84,4 +51,31 @@ class Ruster():
 
         self.lib.k_means(inputs_native, len(inputs), clusters_raw, nb_clusters, ndim)
 
-    # k_means(x: *mut f32, x_len: usize, clusters_raw: *mut f32, nb_clusters: usize, ndim: usize)
+    def predict_rbf_naive(self, model_raw, x, sample, ndim, gamma, classif):
+        x_type = c_float * len(x)
+        x_native = x_type(*x)
+
+        sample_type = c_float * len(sample)
+        sample_native = sample_type(*sample)
+
+        self.lib.predict_rbf_classification.argtypes = [POINTER(c_float), POINTER(c_float), POINTER(c_float), c_int, c_int, c_float]
+        self.lib.predict_rbf_classification.restype = c_float
+
+        self.lib.predict_rbf_regression.argtypes = [POINTER(c_float), POINTER(c_float), POINTER(c_float), c_int, c_int, c_float]
+        self.lib.predict_rbf_regression.restype = c_float
+
+        if classif:
+            return self.lib.predict_rbf_classification(model_raw, x_native, sample_native, len(x), ndim, gamma)
+        else:
+            return self.lib.predict_rbf_regression(model_raw, x_native, sample_native, len(x), ndim, gamma)
+
+    def train_rosenblatt_rbf(self, model_raw, x, y, ndim, iterations, alpha, gamma):
+        x_type = c_float * len(x)
+        x_native = x_type(*x)
+
+        y_type = c_float * len(y)
+        y_native = y_type(*y)
+
+        self.lib.train_rosenblatt_rbf.argtypes = [POINTER(c_float), POINTER(c_float), POINTER(c_float), c_int, c_int, c_int, c_float, c_float]
+
+        self.lib.train_rosenblatt_rbf(model_raw, x_native, y_native, len(x), ndim, iterations, alpha, gamma)

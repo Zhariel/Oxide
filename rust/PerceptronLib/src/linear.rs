@@ -76,10 +76,10 @@ pub extern "C" fn train_rosenblatt_linear_model(np_model: *mut f32, np_inputs: *
         let yk = expected_outputs[k];
         let gxk = predict_linear_model_classification(np_model, xk, mod_size);
 
-        model[0 as usize] += alpha * (yk - gxk) * 1.0;
+        model[0] += alpha * (yk - gxk) * 1.0;
 
         for j in 1..mod_size{
-            model[j] += alpha * (yk - gxk) * xk_slice[(j - 1) ];
+            model[j] += alpha * (yk - gxk) * xk_slice[(j - 1)];
         }
     }
 }

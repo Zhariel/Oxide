@@ -68,5 +68,3 @@ class Ruster():
         self.lib.release_NeuralNet.restype = None
 
         self.lib.release_NeuralNet(neural_net)
-
-
