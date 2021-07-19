@@ -14,8 +14,6 @@ pub extern "C" fn predict_rbf_classification(w_raw: *mut f32, x_raw: *mut f32, s
 #[no_mangle]
 pub extern "C" fn predict_rbf_regression(w_raw: *mut f32, x_raw: *mut f32, sample_raw: *mut f32, x_len: usize, ndim: usize, gamma: f32) -> f32{
     let sample_count = x_len / ndim;
-    // let sample = unsafe{from_raw_parts(sample_raw, ndim)};
-    // let w: Vec<f32> = vec![1.0; sample_count];
     let mut w = unsafe{from_raw_parts(w_raw, sample_count)};
     let x = unsafe{from_raw_parts_mut(x_raw, x_len)};
     let mut gauss_outputs: Vec<f32> = vec![0.0; sample_count];
@@ -54,9 +52,6 @@ pub extern "C" fn train_rosenblatt_rbf(w_raw: *mut f32, x_raw: *mut f32,  y_raw:
     let null_vec: *mut f32 = vec![0.0; ndim].as_mut_ptr();
 
     for i in 0..iterations{
-        // let bias: *mut f32 = vec![1.0; ndim].as_mut_ptr();
-        // let mut gxk = predict_rbf_regression(w_raw, x_raw, bias, x_len, ndim, gamma);
-        // w[0] += alpha * (y[0] - gxk) * 1.0;
 
         for j in 0..sample_count{
             let xk_slice = &mut x[(j*ndim)..((j+1)*ndim)];

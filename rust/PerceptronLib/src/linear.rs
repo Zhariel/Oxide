@@ -3,14 +3,6 @@ use rand::Rng;
 // use ndarray_linalg::*;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 
-#[cfg(test)]
-mod tests {
-    // #[test]
-    // fn it_works() {
-    //     assert_eq!(2 + 2, 4);
-    // }
-}
-
 #[no_mangle]
 pub extern "C" fn sum(arr: *mut i32, size: i32) -> i32 {
     let arr = unsafe {from_raw_parts(arr, size as usize)};
