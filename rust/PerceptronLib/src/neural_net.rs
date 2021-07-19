@@ -2,7 +2,6 @@ use rand::Rng;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 use serde::{Serialize, Deserialize};
 use std::fs;
-use std::os::raw::c_char;
 
 #[derive(Serialize, Deserialize)]
 pub struct NeuralNet{
