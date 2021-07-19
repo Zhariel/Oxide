@@ -68,3 +68,8 @@ class Ruster():
         self.lib.release_NeuralNet.restype = None
 
         self.lib.release_NeuralNet(neural_net)
+
+    def store_nn(self, neural_net, file_nb):
+        self.lib.store_NeuralNet.argtypes = [c_void_p, c_int]
+
+        self.lib.store_NeuralNet(neural_net, file_nb)

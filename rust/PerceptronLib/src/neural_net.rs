@@ -1,7 +1,10 @@
 use rand::Rng;
-use rayon::prelude::*;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
+use serde::{Serialize, Deserialize};
+use std::fs;
+use std::os::raw::c_char;
 
+#[derive(Serialize, Deserialize)]
 pub struct NeuralNet{
     layer_count : usize,
     input_len : usize,
@@ -254,4 +257,13 @@ pub extern "C" fn release_result(result: *mut f32, size: usize){
     unsafe{
         let _ = Vec::from_raw_parts(result, size, size);
     }
+}
+
+#[no_mangle]
+pub extern "C" fn store_NeuralNet(nn: &mut NeuralNet, f: i32){
+    let serialized = serde_json::to_string(&nn).unwrap();
+    let suffix = String::from(".json");
+    let filename = f.to_string() + ".json";
+
+    fs::write(filename, serialized).expect("Unable to write");
 }
