@@ -2,6 +2,8 @@ use rand::Rng;
 use std::slice::{from_raw_parts, from_raw_parts_mut};
 use serde::{Serialize, Deserialize};
 use std::fs;
+use std::fs::File;
+use std::io::Read;
 
 #[derive(Serialize, Deserialize)]
 pub struct NeuralNet{
@@ -15,7 +17,7 @@ pub struct NeuralNet{
     deltas : Vec<Vec<f32>>
 }
 
-fn init_X(layer_count: usize, input_len: usize, hidden_len : usize) -> Vec<Vec<f32>>{
+fn init_x(layer_count: usize, input_len: usize, hidden_len : usize) -> Vec<Vec<f32>>{
     let mut x:Vec<Vec<f32>> = vec![];
 
     let input_with_bias = input_len + 1;
@@ -34,7 +36,7 @@ fn init_X(layer_count: usize, input_len: usize, hidden_len : usize) -> Vec<Vec<f
     x
 }
 
-fn init_W(layer_count: usize, input_len: usize, hidden_len: usize, output_len: usize) -> Vec<Vec<Vec<f32>>>{
+fn init_w(layer_count: usize, input_len: usize, hidden_len: usize, output_len: usize) -> Vec<Vec<Vec<f32>>>{
     let mut w:Vec<Vec<Vec<f32>>> = vec![];
     let input_with_bias = input_len + 1;
     let hidden_with_bias = hidden_len + 1;
@@ -58,7 +60,7 @@ fn init_W(layer_count: usize, input_len: usize, hidden_len: usize, output_len: u
     w
 }
 
-fn init_Deltas(layer_count: usize, hidden_len: usize, output_len: usize) -> Vec<Vec<f32>> {
+fn init_deltas(layer_count: usize, hidden_len: usize, output_len: usize) -> Vec<Vec<f32>> {
     let mut deltas : Vec<Vec<f32>> = vec![];
     let hidden_with_bias = hidden_len + 1;
 
@@ -81,16 +83,40 @@ fn randomize_weights(vec: &mut Vec<f32>){
 #[no_mangle]
 pub extern "C" fn create_NeuralNet(layer_count: usize, input_len: usize, hidden_len : usize, output_len : usize) -> *mut NeuralNet{
 
-    let mut nn = NeuralNet{
+    let nn = NeuralNet{
         layer_count,
         input_len,
         hidden_len,
         output_len,
-        x: init_X(layer_count, input_len, hidden_len),
-        w: init_W(layer_count, input_len, hidden_len, output_len),
+        x: init_x(layer_count, input_len, hidden_len),
+        w: init_w(layer_count, input_len, hidden_len, output_len),
         out: vec![0.0; output_len],
-        deltas: init_Deltas(layer_count, hidden_len, output_len)
+        deltas: init_deltas(layer_count, hidden_len, output_len)
     };
+
+    let boxed_nn = Box::new(nn);
+    let ref_to_nn = Box::leak(boxed_nn);
+
+    ref_to_nn
+}
+
+#[no_mangle]
+pub extern "C" fn store_NeuralNet(nn: &mut NeuralNet, f: i32){
+    let serialized = serde_json::to_string(&nn).unwrap();
+    let filename = "neural\\neural_".to_owned() + &f.to_string() + ".json";
+
+    fs::write(filename, serialized).expect("Unable to write");
+}
+
+#[no_mangle]
+pub extern "C" fn load_NeuralNet(f: i32) -> *mut NeuralNet{
+    let filename = "neural\\neural_".to_owned() + &f.to_string() + ".json";
+
+    let mut data = String::new();
+    let mut file = File::open(filename).unwrap();
+    file.read_to_string(&mut data).unwrap();
+
+    let nn: NeuralNet = serde_json::from_str(&data).expect("Unable to read");
 
     let boxed_nn = Box::new(nn);
     let ref_to_nn = Box::leak(boxed_nn);
@@ -256,13 +282,4 @@ pub extern "C" fn release_result(result: *mut f32, size: usize){
     unsafe{
         let _ = Vec::from_raw_parts(result, size, size);
     }
-}
-
-#[no_mangle]
-pub extern "C" fn store_NeuralNet(nn: &mut NeuralNet, f: i32){
-    let serialized = serde_json::to_string(&nn).unwrap();
-    let suffix = String::from(".json");
-    let filename = f.to_string() + ".json";
-
-    fs::write(filename, serialized).expect("Unable to write");
 }
