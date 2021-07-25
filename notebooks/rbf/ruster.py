@@ -79,3 +79,14 @@ class Ruster():
         self.lib.train_rosenblatt_rbf.argtypes = [POINTER(c_float), POINTER(c_float), POINTER(c_float), c_int, c_int, c_int, c_float, c_float]
 
         self.lib.train_rosenblatt_rbf(model_raw, x_native, y_native, len(x), ndim, iterations, alpha, gamma)
+
+    def store_model(self, neural_net, size, file_nb):
+        self.lib.store_model.argtypes = [POINTER(c_float), c_int, c_int]
+
+        self.lib.store_model(neural_net, size, file_nb)
+
+    def load_model(self, file_nb):
+        self.lib.load_model.argtypes = [c_int]
+        self.lib.load_model.restype = POINTER(c_float)
+
+        return self.lib.load_model(file_nb)
